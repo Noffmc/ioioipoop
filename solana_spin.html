@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Spin - Claim Reward</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+        
+        .claim-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 250px;
+        }
+        
+        .claim-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+        }
+        
+        .claim-button:active {
+            transform: translateY(0);
+        }
+        
+        .wallet-status {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .disconnected {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .connecting {
+            background-color: #fff8e1;
+            color: #ff8f00;
+            border: 1px solid #ffecb3;
+        }
+        
+        .connected {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .wallet-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 12px;
+            text-align: left;
+            display: none;
+        }
+        
+        .wallet-info.visible {
+            display: block;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .info-value {
+            color: #333;
+            word-break: break-all;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">S</div>
+        <h1>Solana Spin Game</h1>
+        <p class="subtitle">Connect your wallet to claim rewards</p>
+        
+        <button id="claimButton" class="claim-button">
+            <span id="buttonText">Claim Reward</span>
+        </button>
+        
+        <div id="walletStatus" class="wallet-status disconnected">
+            Wallet Status: Not Connected
+        </div>
+        
+        <div id="walletInfo" class="wallet-info">
+            <div class="info-row">
+                <span class="info-label">Wallet:</span>
+                <span id="walletName" class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Address:</span>
+                <span id="walletAddress" class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Network:</span>
+                <span id="walletNetwork" class="info-value">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Wallet connection state
+        let walletConnected = false;
+        let walletProvider = null;
+        let walletAddress = null;
+        
+        // DOM elements
+        const claimButton = document.getElementById('claimButton');
+        const walletStatus = document.getElementById('walletStatus');
+        const walletInfo = document.getElementById('walletInfo');
+        const walletName = document.getElementById('walletName');
+        const walletAddressEl = document.getElementById('walletAddress');
+        const walletNetwork = document.getElementById('walletNetwork');
+        const buttonText = document.getElementById('buttonText');
+        
+        // Function to update wallet status UI
+        function updateWalletStatus(status, message, className) {
+            walletStatus.textContent = message;
+            walletStatus.className = `wallet-status ${className}`;
+        }
+        
+        // Function to show wallet info
+        function showWalletInfo(name, address, network) {
+            walletName.textContent = name;
+            walletAddressEl.textContent = address ? `${address.substring(0, 6)}...${address.substring(address.length - 4)}` : '-';
+            walletNetwork.textContent = network || '-';
+            walletInfo.classList.add('visible');
+        }
+        
+        // Function to hide wallet info
+        function hideWalletInfo() {
+            walletInfo.classList.remove('visible');
+        }
+        
+        // Function to connect wallet
+        async function connectWallet() {
+            if (walletConnected) {
+                // If already connected, claim reward
+                claimReward();
+                return;
+            }
+            
+            // Update UI to connecting state
+            updateWalletStatus('connecting', 'Wallet Status: Connecting...', 'connecting');
+            buttonText.innerHTML = '<span class="spinner"></span> Connecting...';
+            claimButton.disabled = true;
+            
+            try {
+                // Simulate wallet connection process
+                // In a real implementation, this would use Eleven.js wallet connector
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Simulate successful connection
+                walletConnected = true;
+                walletProvider = 'Phantom'; // Example wallet provider
+                walletAddress = '8hDLQuL6DsB4g5zQ4axQj4Zn62yP7fDv7p8q3RtGv9xW'; // Example address
+                
+                // Update UI
+                updateWalletStatus('connected', 'Wallet Status: Connected', 'connected');
+                buttonText.textContent = 'Claim Reward';
+                claimButton.disabled = false;
+                
+                // Show wallet info
+                showWalletInfo(walletProvider, walletAddress, 'Solana');
+                
+                // Show success message
+                alert('Wallet connected successfully! You can now claim your reward.');
+            } catch (error) {
+                console.error('Wallet connection failed:', error);
+                updateWalletStatus('disconnected', 'Wallet Status: Connection Failed', 'disconnected');
+                buttonText.textContent = 'Claim Reward';
+                claimButton.disabled = false;
+                hideWalletInfo();
+                
+                alert('Failed to connect wallet. Please try again.');
+            }
+        }
+        
+        // Function to claim reward
+        function claimReward() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first!');
+                return;
+            }
+            
+            // Show claiming state
+            buttonText.innerHTML = '<span class="spinner"></span> Claiming...';
+            claimButton.disabled = true;
+            
+            // Simulate reward claiming process
+            setTimeout(() => {
+                // Show success
+                alert(`Reward claimed successfully! Transaction sent to ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`);
+                
+                // Reset button
+                buttonText.textContent = 'Claim Reward';
+                claimButton.disabled = false;
+            }, 2000);
+        }
+        
+        // Event listener for claim button
+        claimButton.addEventListener('click', connectWallet);
+    </script>
+</body>
+</html>
